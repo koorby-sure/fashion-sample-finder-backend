@@ -1,0 +1,949 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Fashion Sample Finder</title>
+  <meta name="description" content="Поиск модели одежды по фото семпла и сохранение скриншота найденной страницы." />
+  <style>
+    :root {
+      --bg: #f7f3ee;
+      --card: #fffaf5;
+      --text: #231f20;
+      --muted: #77706b;
+      --line: #e4d8cd;
+      --accent: #1f1a17;
+      --accent-soft: #efe4da;
+      --danger: #a43d2f;
+      --ok: #3d6f4d;
+      --shadow: 0 18px 45px rgba(43, 31, 22, 0.09);
+      --radius: 24px;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(circle at top left, rgba(255,255,255,.95), rgba(255,255,255,0) 34rem),
+        linear-gradient(135deg, #f8f1e9 0%, #f4ece4 45%, #eee3d9 100%);
+      min-height: 100vh;
+    }
+
+    a { color: inherit; }
+
+    .page {
+      width: min(1160px, calc(100% - 32px));
+      margin: 0 auto;
+      padding: 34px 0 64px;
+    }
+
+    .hero {
+      display: grid;
+      grid-template-columns: 1.05fr .95fr;
+      gap: 24px;
+      align-items: stretch;
+      margin-bottom: 24px;
+    }
+
+    .hero-card, .panel, .result-card, .modal-card {
+      background: rgba(255, 250, 245, .9);
+      border: 1px solid rgba(228, 216, 205, .9);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(12px);
+    }
+
+    .hero-card { padding: 34px; }
+
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 18px;
+      padding: 8px 12px;
+      border-radius: 999px;
+      background: var(--accent-soft);
+      color: #4d423a;
+      font-size: 13px;
+      font-weight: 650;
+      letter-spacing: .02em;
+    }
+
+    .dot {
+      width: 8px;
+      height: 8px;
+      background: var(--ok);
+      border-radius: 50%;
+      display: inline-block;
+    }
+
+    h1 {
+      margin: 0 0 16px;
+      font-size: clamp(34px, 5vw, 60px);
+      line-height: .95;
+      letter-spacing: -.055em;
+    }
+
+    .lead {
+      margin: 0;
+      color: var(--muted);
+      font-size: 17px;
+      line-height: 1.6;
+      max-width: 760px;
+    }
+
+    .hero-side {
+      padding: 22px;
+      display: grid;
+      gap: 14px;
+      align-content: center;
+    }
+
+    .mini-step {
+      display: flex;
+      gap: 14px;
+      align-items: flex-start;
+      padding: 16px;
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      background: rgba(255,255,255,.48);
+    }
+
+    .num {
+      flex: 0 0 34px;
+      width: 34px;
+      height: 34px;
+      display: grid;
+      place-items: center;
+      border-radius: 12px;
+      background: var(--accent);
+      color: white;
+      font-weight: 800;
+      font-size: 14px;
+    }
+
+    .mini-step b { display: block; margin-bottom: 4px; }
+    .mini-step span { color: var(--muted); font-size: 14px; line-height: 1.45; }
+
+    .grid {
+      display: grid;
+      grid-template-columns: 390px 1fr;
+      gap: 24px;
+      align-items: start;
+    }
+
+    .panel { padding: 22px; }
+
+    .panel h2 {
+      margin: 0 0 16px;
+      font-size: 22px;
+      letter-spacing: -.02em;
+    }
+
+    .upload-box {
+      border: 1.5px dashed #cdbdaf;
+      border-radius: 22px;
+      background: #fffdf9;
+      min-height: 260px;
+      display: grid;
+      place-items: center;
+      overflow: hidden;
+      position: relative;
+      cursor: pointer;
+      transition: .18s ease;
+    }
+
+    .upload-box:hover { border-color: #998779; transform: translateY(-1px); }
+
+    .upload-placeholder {
+      text-align: center;
+      padding: 24px;
+      color: var(--muted);
+    }
+
+    .upload-icon {
+      width: 58px;
+      height: 58px;
+      border-radius: 20px;
+      display: grid;
+      place-items: center;
+      margin: 0 auto 14px;
+      background: var(--accent-soft);
+      color: var(--accent);
+      font-size: 25px;
+    }
+
+    #samplePreview {
+      width: 100%;
+      height: 100%;
+      max-height: 420px;
+      object-fit: contain;
+      display: none;
+      background: white;
+    }
+
+    input[type="file"] { display: none; }
+
+    .field { margin-top: 16px; }
+    label { display: block; font-size: 13px; color: #5b514b; margin-bottom: 8px; font-weight: 700; }
+
+    input[type="text"], input[type="url"], select, textarea {
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: 15px;
+      background: #fffdf9;
+      color: var(--text);
+      font: inherit;
+      padding: 13px 14px;
+      outline: none;
+      transition: .15s ease;
+    }
+
+    input:focus, select:focus, textarea:focus { border-color: #8f7f72; box-shadow: 0 0 0 4px rgba(31,26,23,.06); }
+
+    .hint {
+      margin: 8px 0 0;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.45;
+    }
+
+    .btn-row {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-top: 18px;
+    }
+
+    button, .button-link {
+      border: 0;
+      border-radius: 15px;
+      padding: 13px 16px;
+      background: var(--accent);
+      color: white;
+      font: inherit;
+      font-weight: 760;
+      cursor: pointer;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      transition: .18s ease;
+      min-height: 46px;
+    }
+
+    button:hover, .button-link:hover { transform: translateY(-1px); filter: brightness(1.06); }
+    button:disabled { opacity: .5; cursor: not-allowed; transform: none; }
+
+    .secondary {
+      background: #fffdf9;
+      color: var(--accent);
+      border: 1px solid var(--line);
+    }
+
+    .danger-text { color: var(--danger); }
+    .ok-text { color: var(--ok); }
+
+    .status {
+      margin-top: 14px;
+      padding: 12px 14px;
+      border-radius: 16px;
+      background: #fff4e5;
+      color: #705234;
+      font-size: 13px;
+      line-height: 1.45;
+      display: none;
+    }
+
+    .status.show { display: block; }
+
+    .toolbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 16px;
+      margin-bottom: 16px;
+    }
+
+    .toolbar p { margin: 0; color: var(--muted); font-size: 14px; }
+
+    .results {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    .empty {
+      min-height: 430px;
+      display: grid;
+      place-items: center;
+      text-align: center;
+      border: 1px dashed #d7c8bb;
+      border-radius: 22px;
+      color: var(--muted);
+      padding: 24px;
+      background: rgba(255,255,255,.34);
+    }
+
+    .result-card {
+      overflow: hidden;
+      box-shadow: 0 10px 25px rgba(43,31,22,.06);
+      border-radius: 20px;
+    }
+
+    .result-thumb {
+      width: 100%;
+      aspect-ratio: 4 / 3;
+      background: #eee4da;
+      object-fit: cover;
+      display: block;
+    }
+
+    .result-body { padding: 14px; }
+
+    .result-title {
+      margin: 0 0 8px;
+      font-weight: 800;
+      line-height: 1.35;
+      font-size: 15px;
+    }
+
+    .domain {
+      color: var(--muted);
+      font-size: 12px;
+      margin-bottom: 10px;
+      word-break: break-word;
+    }
+
+    .score {
+      display: inline-flex;
+      padding: 6px 9px;
+      border-radius: 999px;
+      background: #eff6ef;
+      color: #315b3b;
+      font-size: 12px;
+      font-weight: 800;
+      margin-bottom: 12px;
+    }
+
+    .result-actions {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+
+    .result-actions button, .result-actions a {
+      padding: 10px 12px;
+      min-height: 40px;
+      font-size: 13px;
+      border-radius: 13px;
+    }
+
+    .modal {
+      position: fixed;
+      inset: 0;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      background: rgba(19, 15, 12, .55);
+      padding: 18px;
+      z-index: 50;
+    }
+
+    .modal.show { display: flex; }
+
+    .modal-card {
+      width: min(900px, 100%);
+      max-height: 92vh;
+      overflow: auto;
+      padding: 22px;
+    }
+
+    .modal-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 16px;
+      margin-bottom: 16px;
+    }
+
+    .modal-head h3 { margin: 0 0 6px; font-size: 23px; }
+    .modal-head p { margin: 0; color: var(--muted); font-size: 13px; word-break: break-word; }
+
+    .close {
+      width: 40px;
+      height: 40px;
+      border-radius: 14px;
+      padding: 0;
+      flex: 0 0 auto;
+      background: #fffdf9;
+      color: var(--accent);
+      border: 1px solid var(--line);
+    }
+
+    .shot-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+    }
+
+    .shot-grid .field { margin-top: 0; }
+
+    .demo-note {
+      margin-top: 18px;
+      padding: 14px;
+      border-radius: 18px;
+      background: #fff4e5;
+      color: #73502d;
+      font-size: 13px;
+      line-height: 1.48;
+    }
+
+    .footer-note {
+      margin-top: 18px;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.5;
+    }
+
+    @media (max-width: 920px) {
+      .hero, .grid { grid-template-columns: 1fr; }
+      .results { grid-template-columns: 1fr; }
+      .shot-grid { grid-template-columns: 1fr 1fr; }
+    }
+
+    @media (max-width: 560px) {
+      .page { width: min(100% - 22px, 1160px); padding-top: 18px; }
+      .hero-card, .panel, .modal-card { padding: 17px; border-radius: 20px; }
+      .shot-grid { grid-template-columns: 1fr; }
+      .result-actions { grid-template-columns: 1fr; }
+      h1 { font-size: 36px; }
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <section class="hero">
+      <div class="hero-card">
+        <div class="eyebrow"><span class="dot"></span> Fashion sample reverse search</div>
+        <h1>Find the original style by sample photo</h1>
+        <p class="lead">
+          Upload a garment sample photo, add the brand if known, find matching product pages, then save a screenshot of the page in the needed position.
+        </p>
+      </div>
+
+      <aside class="hero-side hero-card">
+        <div class="mini-step"><span class="num">1</span><div><b>Upload sample</b><span>Photo of the original sample, showroom piece, or supplier reference.</span></div></div>
+        <div class="mini-step"><span class="num">2</span><div><b>Add brand hint</b><span>Zara, H&M, Next, Mango, Mayoral, etc. Optional but useful.</span></div></div>
+        <div class="mini-step"><span class="num">3</span><div><b>Save screenshot</b><span>Select page position and download a PNG evidence screenshot.</span></div></div>
+      </aside>
+    </section>
+
+    <section class="grid">
+      <section class="panel">
+        <h2>Search setup</h2>
+
+        <label class="upload-box" for="sampleInput" id="uploadBox">
+          <img id="samplePreview" alt="Uploaded sample preview" />
+          <div class="upload-placeholder" id="uploadPlaceholder">
+            <div class="upload-icon">↥</div>
+            <b>Click to upload sample photo</b>
+            <p class="hint">JPG, PNG, WEBP. Best result: clean front view, visible print/details.</p>
+          </div>
+        </label>
+        <input id="sampleInput" type="file" accept="image/*" />
+
+        <div class="field">
+          <label for="brandInput">Brand, if known</label>
+          <input id="brandInput" type="text" placeholder="Example: Zara, H&M, Next, Mango, Mayoral" />
+          <p class="hint">Brand narrows visual search and reduces random similar garments.</p>
+        </div>
+
+        <div class="field">
+          <label for="backendInput">Backend URL</label>
+          <input id="backendInput" type="url" placeholder="https://your-backend.onrender.com" />
+          <p class="hint">
+            GitHub Pages is static. For real visual search and screenshots, connect a backend. Without backend, demo results will be shown.
+          </p>
+        </div>
+
+        <div class="btn-row">
+          <button id="searchBtn">Find model</button>
+          <button class="secondary" id="resetBtn" type="button">Reset</button>
+        </div>
+
+        <div class="status" id="statusBox"></div>
+
+        <p class="footer-note">
+          Static GitHub Pages cannot directly capture screenshots of external websites because of browser security/CORS restrictions. This page is ready to work with a backend endpoint.
+        </p>
+      </section>
+
+      <section class="panel">
+        <div class="toolbar">
+          <div>
+            <h2 style="margin-bottom:6px">Results</h2>
+            <p id="resultSubhead">Upload a photo to start searching.</p>
+          </div>
+        </div>
+        <div id="resultsArea" class="empty">
+          <div>
+            <b>No results yet</b>
+            <p class="hint">After search, matching product pages will appear here.</p>
+          </div>
+        </div>
+      </section>
+    </section>
+  </main>
+
+  <div class="modal" id="shotModal" aria-hidden="true">
+    <div class="modal-card">
+      <div class="modal-head">
+        <div>
+          <h3>Save website screenshot</h3>
+          <p id="selectedUrlText"></p>
+        </div>
+        <button class="close" id="closeModal" aria-label="Close">×</button>
+      </div>
+
+      <div class="shot-grid">
+        <div class="field">
+          <label for="shotMode">Screenshot type</label>
+          <select id="shotMode">
+            <option value="viewport">Visible area</option>
+            <option value="fullPage">Full page</option>
+            <option value="customArea">Custom area</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="scrollY">Scroll Y, px</label>
+          <input id="scrollY" type="text" inputmode="numeric" value="0" />
+        </div>
+        <div class="field">
+          <label for="viewportWidth">Width</label>
+          <input id="viewportWidth" type="text" inputmode="numeric" value="1440" />
+        </div>
+        <div class="field">
+          <label for="viewportHeight">Height</label>
+          <input id="viewportHeight" type="text" inputmode="numeric" value="1200" />
+        </div>
+      </div>
+
+      <div class="shot-grid" style="margin-top:12px">
+        <div class="field">
+          <label for="clipX">Area X</label>
+          <input id="clipX" type="text" inputmode="numeric" value="0" />
+        </div>
+        <div class="field">
+          <label for="clipY">Area Y</label>
+          <input id="clipY" type="text" inputmode="numeric" value="0" />
+        </div>
+        <div class="field">
+          <label for="clipW">Area width</label>
+          <input id="clipW" type="text" inputmode="numeric" value="800" />
+        </div>
+        <div class="field">
+          <label for="clipH">Area height</label>
+          <input id="clipH" type="text" inputmode="numeric" value="900" />
+        </div>
+      </div>
+
+      <div class="btn-row">
+        <button id="downloadShotBtn">Download screenshot</button>
+        <a id="openSelectedUrl" class="button-link secondary" href="#" target="_blank" rel="noopener">Open website</a>
+      </div>
+
+      <div class="demo-note">
+        If no backend URL is connected, this button will create a simple evidence card instead of a real website screenshot. For real screenshots, deploy the Node/Playwright backend and paste its URL into the Backend URL field.
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // For GitHub Pages: leave empty and paste the backend URL in the interface.
+    // Example: const DEFAULT_BACKEND_URL = "https://fashion-search-backend.onrender.com";
+    const DEFAULT_BACKEND_URL = "";
+
+    const sampleInput = document.getElementById("sampleInput");
+    const samplePreview = document.getElementById("samplePreview");
+    const uploadPlaceholder = document.getElementById("uploadPlaceholder");
+    const brandInput = document.getElementById("brandInput");
+    const backendInput = document.getElementById("backendInput");
+    const searchBtn = document.getElementById("searchBtn");
+    const resetBtn = document.getElementById("resetBtn");
+    const statusBox = document.getElementById("statusBox");
+    const resultsArea = document.getElementById("resultsArea");
+    const resultSubhead = document.getElementById("resultSubhead");
+
+    const shotModal = document.getElementById("shotModal");
+    const closeModal = document.getElementById("closeModal");
+    const selectedUrlText = document.getElementById("selectedUrlText");
+    const openSelectedUrl = document.getElementById("openSelectedUrl");
+    const downloadShotBtn = document.getElementById("downloadShotBtn");
+
+    let uploadedFile = null;
+    let uploadedDataUrl = null;
+    let selectedResult = null;
+
+    backendInput.value = localStorage.getItem("fashionFinderBackend") || DEFAULT_BACKEND_URL;
+
+    function setStatus(message, type = "info") {
+      statusBox.textContent = message;
+      statusBox.className = "status show";
+      if (type === "error") statusBox.style.background = "#fdeae7";
+      else if (type === "ok") statusBox.style.background = "#edf6ef";
+      else statusBox.style.background = "#fff4e5";
+    }
+
+    function clearStatus() {
+      statusBox.textContent = "";
+      statusBox.className = "status";
+    }
+
+    function getBackendUrl() {
+      return backendInput.value.trim().replace(/\/$/, "");
+    }
+
+    function escapeHtml(value) {
+      return String(value || "")
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+    }
+
+    function safeNumber(id, fallback) {
+      const value = Number(document.getElementById(id).value);
+      return Number.isFinite(value) ? value : fallback;
+    }
+
+    sampleInput.addEventListener("change", () => {
+      const file = sampleInput.files && sampleInput.files[0];
+      if (!file) return;
+      uploadedFile = file;
+      const reader = new FileReader();
+      reader.onload = () => {
+        uploadedDataUrl = reader.result;
+        samplePreview.src = uploadedDataUrl;
+        samplePreview.style.display = "block";
+        uploadPlaceholder.style.display = "none";
+        clearStatus();
+      };
+      reader.readAsDataURL(file);
+    });
+
+    resetBtn.addEventListener("click", () => {
+      uploadedFile = null;
+      uploadedDataUrl = null;
+      selectedResult = null;
+      sampleInput.value = "";
+      samplePreview.src = "";
+      samplePreview.style.display = "none";
+      uploadPlaceholder.style.display = "block";
+      brandInput.value = "";
+      resultsArea.className = "empty";
+      resultsArea.innerHTML = '<div><b>No results yet</b><p class="hint">After search, matching product pages will appear here.</p></div>';
+      resultSubhead.textContent = "Upload a photo to start searching.";
+      clearStatus();
+    });
+
+    searchBtn.addEventListener("click", async () => {
+      if (!uploadedFile) {
+        setStatus("Please upload a sample photo first.", "error");
+        return;
+      }
+
+      const backendUrl = getBackendUrl();
+      const brand = brandInput.value.trim();
+      if (backendUrl) localStorage.setItem("fashionFinderBackend", backendUrl);
+
+      searchBtn.disabled = true;
+      setStatus(backendUrl ? "Searching by image..." : "Backend is not connected. Showing demo result cards.");
+
+      try {
+        let results = [];
+        if (backendUrl) {
+          const formData = new FormData();
+          formData.append("image", uploadedFile);
+          formData.append("brand", brand);
+
+          const response = await fetch(`${backendUrl}/api/search`, {
+            method: "POST",
+            body: formData
+          });
+
+          if (!response.ok) {
+            throw new Error(`Search failed: ${response.status}`);
+          }
+
+          const data = await response.json();
+          results = Array.isArray(data.results) ? data.results : [];
+        } else {
+          results = getDemoResults(brand);
+        }
+
+        renderResults(results);
+        setStatus(results.length ? `Found ${results.length} possible matches.` : "No matches found. Try another photo or add a brand hint.", results.length ? "ok" : "info");
+      } catch (error) {
+        console.error(error);
+        setStatus("Search error. Check backend URL, API keys, and CORS settings.", "error");
+      } finally {
+        searchBtn.disabled = false;
+      }
+    });
+
+    function getDemoResults(brand) {
+      const brandName = brand || "Brand hint not entered";
+      return [
+        {
+          title: `${brandName} — possible matching kidswear style`,
+          url: "https://www.zara.com/",
+          domain: "zara.com",
+          thumbnail: uploadedDataUrl,
+          score: 88
+        },
+        {
+          title: `${brandName} — similar embroidered / printed top`,
+          url: "https://www2.hm.com/",
+          domain: "hm.com",
+          thumbnail: uploadedDataUrl,
+          score: 74
+        },
+        {
+          title: `${brandName} — similar girls garment reference`,
+          url: "https://www.next.ae/",
+          domain: "next.ae",
+          thumbnail: uploadedDataUrl,
+          score: 69
+        },
+        {
+          title: `${brandName} — visual match candidate`,
+          url: "https://shop.mango.com/",
+          domain: "mango.com",
+          thumbnail: uploadedDataUrl,
+          score: 63
+        }
+      ];
+    }
+
+    function renderResults(results) {
+      if (!results.length) {
+        resultsArea.className = "empty";
+        resultsArea.innerHTML = '<div><b>No matches found</b><p class="hint">Try a cleaner image, crop the garment, or add brand name.</p></div>';
+        resultSubhead.textContent = "No matching product pages found.";
+        return;
+      }
+
+      resultSubhead.textContent = "Choose the closest match and save a screenshot.";
+      resultsArea.className = "results";
+      resultsArea.innerHTML = results.map((item, index) => {
+        const url = escapeHtml(item.url || "#");
+        const title = escapeHtml(item.title || "Untitled result");
+        const domain = escapeHtml(item.domain || getDomain(item.url));
+        const thumb = escapeHtml(item.thumbnail || uploadedDataUrl || "");
+        const score = typeof item.score === "number" ? `${item.score}% match` : "Possible match";
+        return `
+          <article class="result-card">
+            <img class="result-thumb" src="${thumb}" alt="${title}" />
+            <div class="result-body">
+              <p class="result-title">${title}</p>
+              <div class="domain">${domain}</div>
+              <div class="score">${score}</div>
+              <div class="result-actions">
+                <a class="button-link secondary" href="${url}" target="_blank" rel="noopener">Open</a>
+                <button type="button" onclick="openScreenshotModal(${index})">Save screenshot</button>
+              </div>
+            </div>
+          </article>
+        `;
+      }).join("");
+
+      window.__fashionFinderResults = results;
+    }
+
+    function getDomain(url) {
+      try { return new URL(url).hostname.replace(/^www\./, ""); }
+      catch { return "unknown website"; }
+    }
+
+    window.openScreenshotModal = function(index) {
+      selectedResult = (window.__fashionFinderResults || [])[index];
+      if (!selectedResult) return;
+      selectedUrlText.textContent = selectedResult.url;
+      openSelectedUrl.href = selectedResult.url || "#";
+      shotModal.classList.add("show");
+      shotModal.setAttribute("aria-hidden", "false");
+    };
+
+    closeModal.addEventListener("click", closeScreenshotModal);
+    shotModal.addEventListener("click", (event) => {
+      if (event.target === shotModal) closeScreenshotModal();
+    });
+
+    function closeScreenshotModal() {
+      shotModal.classList.remove("show");
+      shotModal.setAttribute("aria-hidden", "true");
+    }
+
+    downloadShotBtn.addEventListener("click", async () => {
+      if (!selectedResult) return;
+      const backendUrl = getBackendUrl();
+      if (backendUrl) localStorage.setItem("fashionFinderBackend", backendUrl);
+
+      const payload = {
+        url: selectedResult.url,
+        mode: document.getElementById("shotMode").value,
+        scrollY: safeNumber("scrollY", 0),
+        viewport: {
+          width: safeNumber("viewportWidth", 1440),
+          height: safeNumber("viewportHeight", 1200)
+        },
+        clip: {
+          x: safeNumber("clipX", 0),
+          y: safeNumber("clipY", 0),
+          width: safeNumber("clipW", 800),
+          height: safeNumber("clipH", 900)
+        }
+      };
+
+      downloadShotBtn.disabled = true;
+
+      try {
+        if (backendUrl) {
+          const response = await fetch(`${backendUrl}/api/screenshot`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload)
+          });
+
+          if (!response.ok) throw new Error(`Screenshot failed: ${response.status}`);
+          const blob = await response.blob();
+          downloadBlob(blob, makeFileName(selectedResult.url));
+        } else {
+          const blob = await createDemoEvidenceCard(selectedResult, payload);
+          downloadBlob(blob, makeFileName(selectedResult.url));
+        }
+      } catch (error) {
+        console.error(error);
+        alert("Screenshot error. Check backend URL and screenshot service settings.");
+      } finally {
+        downloadShotBtn.disabled = false;
+      }
+    });
+
+    function makeFileName(url) {
+      const domain = getDomain(url).replace(/[^a-z0-9]+/gi, "-").toLowerCase();
+      const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-");
+      return `fashion-screenshot-${domain}-${stamp}.png`;
+    }
+
+    function downloadBlob(blob, fileName) {
+      const link = document.createElement("a");
+      link.href = URL.createObjectURL(blob);
+      link.download = fileName;
+      document.body.appendChild(link);
+      link.click();
+      URL.revokeObjectURL(link.href);
+      link.remove();
+    }
+
+    async function createDemoEvidenceCard(result, payload) {
+      const canvas = document.createElement("canvas");
+      canvas.width = 1400;
+      canvas.height = 1000;
+      const ctx = canvas.getContext("2d");
+
+      ctx.fillStyle = "#f7f3ee";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      roundRect(ctx, 60, 60, 1280, 880, 42, "#fffaf5");
+
+      ctx.fillStyle = "#231f20";
+      ctx.font = "bold 54px Arial";
+      ctx.fillText("Fashion sample evidence", 110, 150);
+
+      ctx.fillStyle = "#77706b";
+      ctx.font = "28px Arial";
+      wrapText(ctx, result.title || "Possible match", 110, 210, 1180, 38);
+
+      ctx.fillStyle = "#231f20";
+      ctx.font = "bold 30px Arial";
+      ctx.fillText("Matched page:", 110, 330);
+      ctx.font = "26px Arial";
+      ctx.fillStyle = "#4d423a";
+      wrapText(ctx, result.url || "", 110, 375, 1150, 34);
+
+      ctx.fillStyle = "#231f20";
+      ctx.font = "bold 30px Arial";
+      ctx.fillText("Screenshot settings:", 110, 500);
+      ctx.font = "25px Arial";
+      ctx.fillStyle = "#4d423a";
+      ctx.fillText(`Mode: ${payload.mode}`, 110, 550);
+      ctx.fillText(`Scroll Y: ${payload.scrollY}px`, 110, 590);
+      ctx.fillText(`Viewport: ${payload.viewport.width} × ${payload.viewport.height}px`, 110, 630);
+
+      ctx.fillStyle = "#a43d2f";
+      ctx.font = "24px Arial";
+      wrapText(ctx, "Demo mode: this is not a real website screenshot. Connect backend URL to capture live product pages.", 110, 730, 1150, 34);
+
+      if (uploadedDataUrl) {
+        await drawImageContain(ctx, uploadedDataUrl, 900, 500, 330, 330);
+        ctx.strokeStyle = "#e4d8cd";
+        ctx.lineWidth = 4;
+        ctx.strokeRect(900, 500, 330, 330);
+      }
+
+      return new Promise(resolve => canvas.toBlob(resolve, "image/png", 0.95));
+    }
+
+    function roundRect(ctx, x, y, width, height, radius, fill) {
+      ctx.beginPath();
+      ctx.moveTo(x + radius, y);
+      ctx.arcTo(x + width, y, x + width, y + height, radius);
+      ctx.arcTo(x + width, y + height, x, y + height, radius);
+      ctx.arcTo(x, y + height, x, y, radius);
+      ctx.arcTo(x, y, x + width, y, radius);
+      ctx.closePath();
+      ctx.fillStyle = fill;
+      ctx.fill();
+    }
+
+    function wrapText(ctx, text, x, y, maxWidth, lineHeight) {
+      const words = String(text).split(" ");
+      let line = "";
+      for (let n = 0; n < words.length; n++) {
+        const testLine = line + words[n] + " ";
+        const metrics = ctx.measureText(testLine);
+        if (metrics.width > maxWidth && n > 0) {
+          ctx.fillText(line, x, y);
+          line = words[n] + " ";
+          y += lineHeight;
+        } else {
+          line = testLine;
+        }
+      }
+      ctx.fillText(line, x, y);
+    }
+
+    function drawImageContain(ctx, src, x, y, w, h) {
+      return new Promise(resolve => {
+        const img = new Image();
+        img.onload = () => {
+          const ratio = Math.min(w / img.width, h / img.height);
+          const nw = img.width * ratio;
+          const nh = img.height * ratio;
+          const nx = x + (w - nw) / 2;
+          const ny = y + (h - nh) / 2;
+          ctx.drawImage(img, nx, ny, nw, nh);
+          resolve();
+        };
+        img.src = src;
+      });
+    }
+  </script>
+</body>
+</html>
